@@ -25,6 +25,7 @@ class StaticMapProvider {
       {int width, int height, StaticMapViewType mapType}) {
     return _buildUrl(
         null,
+        null,
         center,
         zoomLevel ?? defaultZoomLevel,
         width ?? defaultWidth,
@@ -40,7 +41,19 @@ class StaticMapProvider {
 
   Uri getStaticUriWithMarkers(List<Marker> markers,
       {int width, int height, StaticMapViewType maptype, Location center}) {
-    return _buildUrl(markers, center, null, width ?? defaultWidth,
+    return _buildUrl(null, markers, center, null, width ?? defaultWidth,
+        height ?? defaultHeight, maptype ?? defaultMaptype);
+  }
+
+  ///
+  /// Creates a Uri for the Google Static Maps API using a list of locations to create a path on the map
+  /// [locations] must have at least 2 locations
+  /// Specify a [width] and [height] that you would like the resulting image to be. The default is 600w x 400h
+  ///
+
+  Uri getStaticUriWithPath(List<Location> points,
+      {int width, int height, StaticMapViewType maptype, Location center}) {
+    return _buildUrl(points, null, center, null, width ?? defaultWidth,
         height ?? defaultHeight, maptype ?? defaultMaptype);
   }
 
@@ -56,7 +69,7 @@ class StaticMapProvider {
       StaticMapViewType maptype,
       Location center,
       int zoomLevel}) {
-    return _buildUrl(markers, center, zoomLevel, width ?? defaultWidth,
+    return _buildUrl(null, markers, center, zoomLevel, width ?? defaultWidth,
         height ?? defaultHeight, maptype ?? defaultMaptype);
   }
 
@@ -71,11 +84,11 @@ class StaticMapProvider {
     var markers = await mapView.visibleAnnotations;
     var center = await mapView.centerLocation;
     var zoom = await mapView.zoomLevel;
-    return _buildUrl(markers, center, zoom.toInt(), width ?? defaultWidth,
+    return _buildUrl(null, markers, center, zoom.toInt(), width ?? defaultWidth,
         height ?? defaultHeight, maptype ?? defaultMaptype);
   }
 
-  Uri _buildUrl(List<Marker> locations, Location center, int zoomLevel,
+  Uri _buildUrl(List<Location> points, List<Marker> locations, Location center, int zoomLevel,
       int width, int height, StaticMapViewType mapType) {
     var finalUri = new UriBuilder()
       ..scheme = 'https'
@@ -83,11 +96,27 @@ class StaticMapProvider {
       ..port = 443
       ..path = '/maps/api/staticmap';
 
-    if (center == null && (locations == null || locations.length == 0)) {
+    if (center == null && (locations == null || locations.length == 0)
+        && (points == null || points.length < 2)) {
       center = Locations.centerOfUSA;
     }
 
-    if (locations == null || locations.length == 0) {
+    if (points != null && points.length >= 2) {
+      List<String> locs = new List();
+      points.forEach((location) {
+        num lat = location.latitude;
+        num lng = location.longitude;
+        String point = '$lat,$lng';
+        locs.add(point);
+      });
+      String pointsString = locs.join('|');
+      finalUri.queryParameters = {
+        'path': pointsString,
+        'size': '${width ?? defaultWidth}x${height ?? defaultHeight}',
+        'maptype': _getMapTypeQueryParam(mapType),
+        'key': googleMapsApiKey,
+      };
+    }else if (locations == null || locations.length == 0) {
       if (center == null) center = Locations.centerOfUSA;
       finalUri.queryParameters = {
         'center': '${center.latitude},${center.longitude}',
