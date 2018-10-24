@@ -22,7 +22,7 @@ class StaticMapProvider {
   ///
 
   Uri getStaticUri(Location center, int zoomLevel,
-      {int width, int height, StaticMapViewType mapType}) {
+      {int width, int height, StaticMapViewType mapType, String style}) {
     return _buildUrl(
         null,
         null,
@@ -30,7 +30,7 @@ class StaticMapProvider {
         zoomLevel ?? defaultZoomLevel,
         width ?? defaultWidth,
         height ?? defaultHeight,
-        mapType ?? defaultMaptype, false);
+        mapType ?? defaultMaptype, false, style ?? "");
   }
 
   ///
@@ -40,9 +40,9 @@ class StaticMapProvider {
   ///
 
   Uri getStaticUriWithMarkers(List<Marker> markers,
-      {int width, int height, StaticMapViewType maptype, Location center, bool customIcon}) {
+      {int width, int height, StaticMapViewType maptype, Location center, bool customIcon, String style}) {
     return _buildUrl(null, markers, center, null, width ?? defaultWidth,
-        height ?? defaultHeight, maptype ?? defaultMaptype, customIcon ?? false);
+        height ?? defaultHeight, maptype ?? defaultMaptype, customIcon ?? false, style ?? "");
   }
 
   ///
@@ -52,9 +52,9 @@ class StaticMapProvider {
   ///
 
   Uri getStaticUriWithPath(List<Location> points,
-      {int width, int height, StaticMapViewType maptype, Location center}) {
+      {int width, int height, StaticMapViewType maptype, Location center, String style}) {
     return _buildUrl(points, null, center, null, width ?? defaultWidth,
-        height ?? defaultHeight, maptype ?? defaultMaptype, false);
+        height ?? defaultHeight, maptype ?? defaultMaptype, false, style ?? "");
   }
 
   ///
@@ -65,9 +65,9 @@ class StaticMapProvider {
   ///
 
   Uri getStaticUriWithPathAndMarkers(List<Location> points,List<Marker> markers,
-      {int width, int height, StaticMapViewType maptype, Location center, bool customIcon}) {
+      {int width, int height, StaticMapViewType maptype, Location center, bool customIcon, String style}) {
     return _buildUrl(points, markers, center, null, width ?? defaultWidth,
-        height ?? defaultHeight, maptype ?? defaultMaptype, customIcon ?? false);
+        height ?? defaultHeight, maptype ?? defaultMaptype, customIcon ?? false, style ?? "");
   }
 
   ///
@@ -81,9 +81,9 @@ class StaticMapProvider {
       int height,
       StaticMapViewType maptype,
       Location center,
-      int zoomLevel, bool customIcon}) {
+      int zoomLevel, bool customIcon, String style}) {
     return _buildUrl(null, markers, center, zoomLevel, width ?? defaultWidth,
-        height ?? defaultHeight, maptype ?? defaultMaptype, customIcon ?? false);
+        height ?? defaultHeight, maptype ?? defaultMaptype, customIcon ?? false, style ?? "");
   }
 
   ///
@@ -93,16 +93,16 @@ class StaticMapProvider {
   /// Specify a [width] and [height] that you would like the resulting image to be. The default is 600w x 400h
   ///
   Future<Uri> getImageUriFromMap(MapView mapView,
-      {int width, int height, StaticMapViewType maptype}) async {
+      {int width, int height, StaticMapViewType maptype, String style}) async {
     var markers = await mapView.visibleAnnotations;
     var center = await mapView.centerLocation;
     var zoom = await mapView.zoomLevel;
     return _buildUrl(null, markers, center, zoom.toInt(), width ?? defaultWidth,
-        height ?? defaultHeight, maptype ?? defaultMaptype, false);
+        height ?? defaultHeight, maptype ?? defaultMaptype, false, style ?? "");
   }
 
   Uri _buildUrl(List<Location> points, List<Marker> locations, Location center, int zoomLevel,
-      int width, int height, StaticMapViewType mapType, bool customIcon) {
+      int width, int height, StaticMapViewType mapType, bool customIcon, String style) {
     var finalUri = new UriBuilder()
       ..scheme = 'https'
       ..host = 'maps.googleapis.com'
@@ -131,6 +131,11 @@ class StaticMapProvider {
         'maptype': _getMapTypeQueryParam(mapType),
         'key': googleMapsApiKey,
       };
+
+      if (style != "") {
+        finalUri.queryParameters['style'] = style;
+      }
+
     }else if ((points != null && points.length >= 2) && (locations != null && locations.length > 0)) {
       List<String> locs = new List();
       points.forEach((location) {
@@ -149,7 +154,7 @@ class StaticMapProvider {
       String pointsString = locs.join('|');
       if(customIcon) {
         String size = '${width ?? defaultWidth}x${height ?? defaultHeight}';
-        uri = _createCustomMarkersUri(pointsString, locations, size);
+        uri = _createCustomMarkersUri(pointsString, locations, size, style);
       } else {
         String markersString = markers.join('|');
         finalUri.queryParameters = {
@@ -159,6 +164,10 @@ class StaticMapProvider {
           'maptype': _getMapTypeQueryParam(mapType),
           'key': googleMapsApiKey,
         };
+
+        if (style != "") {
+          finalUri.queryParameters['style'] = style;
+        }
       }
     }else if (locations == null || locations.length == 0) {
       if (center == null) center = Locations.centerOfUSA;
@@ -169,6 +178,10 @@ class StaticMapProvider {
         'maptype': _getMapTypeQueryParam(mapType),
         'key': googleMapsApiKey,
       };
+
+      if (style != "") {
+        finalUri.queryParameters['style'] = style;
+      }
     } else {
       List<String> markers = new List();
       locations.forEach((location) {
@@ -179,7 +192,7 @@ class StaticMapProvider {
       });
       if (customIcon){
         String size = '${width ?? defaultWidth}x${height ?? defaultHeight}';
-        uri = _createCustomMarkersUri(null, locations, size);
+        uri = _createCustomMarkersUri(null, locations, size, style);
       } else {
         String markersString = markers.join('|');
         finalUri.queryParameters = {
@@ -188,6 +201,10 @@ class StaticMapProvider {
           'maptype': _getMapTypeQueryParam(mapType),
           'key': googleMapsApiKey,
         };
+
+        if (style != "") {
+          finalUri.queryParameters['style'] = style;
+        }
       }
     }
     if (center != null)
@@ -206,7 +223,7 @@ class StaticMapProvider {
   /// Locations contain the Custom Marker Icon.
   /// Size is already formatted correctly.
   ///
-  Uri _createCustomMarkersUri(String path, List<Marker> locations, String size) {
+  Uri _createCustomMarkersUri(String path, List<Marker> locations, String size, String style) {
     Uri uri;
 
     List<String> icons = new List();
@@ -240,17 +257,31 @@ class StaticMapProvider {
       icons.add(markerUrl);
     });
 
+
     String markersString = icons.join('%7C');
 
-    if (path != null) {
-      uri = Uri.parse(
-          'https://maps.googleapis.com/maps/api/staticmap?&size=$size&path=$path' +
-              markersString + '&key=$googleMapsApiKey');
+    if (style == "") {
+      if (path != null) {
+        uri = Uri.parse(
+            'https://maps.googleapis.com/maps/api/staticmap?&size=$size&path=$path' +
+                markersString + '&key=$googleMapsApiKey');
+      } else {
+        uri = Uri.parse(
+            'https://maps.googleapis.com/maps/api/staticmap?&size=$size' +
+                markersString + '&key=$googleMapsApiKey');
+      }
     } else {
-      uri = Uri.parse(
-          'https://maps.googleapis.com/maps/api/staticmap?&size=$size' +
-              markersString + '&key=$googleMapsApiKey');
+      if (path != null) {
+        uri = Uri.parse(
+            'https://maps.googleapis.com/maps/api/staticmap?&size=$size&style=$style&path=$path' +
+                markersString + '&key=$googleMapsApiKey');
+      } else {
+        uri = Uri.parse(
+            'https://maps.googleapis.com/maps/api/staticmap?&size=$size&style=$style' +
+                markersString + '&key=$googleMapsApiKey');
+      }
     }
+
 
     return uri;
   }
