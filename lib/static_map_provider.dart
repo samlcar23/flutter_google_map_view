@@ -227,7 +227,6 @@ class StaticMapProvider {
       uri = finalUri.build();
     }
 
-    print(uri);
     return uri;
   }
 
